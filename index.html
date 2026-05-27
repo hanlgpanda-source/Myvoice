@@ -20,23 +20,48 @@
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             text-align: center;
-            max-width: 500px;
+            max-width: 550px;
             width: 100%;
         }
         h1 {
             color: #333;
             font-size: 24px;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
+        }
+        .nav-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .btn-nav {
+            background-color: #34495e;
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+        }
+        .btn-nav:hover {
+            background-color: #2c3e50;
+        }
+        .sentence-counter {
+            font-size: 14px;
+            color: #7f8c8d;
+            font-weight: bold;
         }
         .sentence-box {
             background-color: #eef2f7;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             color: #2c3e50;
             margin-bottom: 20px;
             border-left: 5px solid #3498db;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         button {
             background-color: #2ecc71;
@@ -59,6 +84,7 @@
         .result-box {
             margin-top: 25px;
             text-align: left;
+            min-height: 120px;
         }
         .score {
             font-size: 40px;
@@ -71,6 +97,7 @@
             font-style: italic;
             margin-bottom: 10px;
             text-align: center;
+            height: 20px;
         }
         .diff {
             font-size: 18px;
@@ -87,10 +114,17 @@
 
 <div class="container">
     <h1>Phát Âm Chuẩn Anh - Mỹ (US)</h1>
-    
     <div class="status" id="status">Nhấn nút bên dưới và bắt đầu nói</div>
     
-    <div class="sentence-box" id="targetSentence">Beautiful day to learn coding</div>
+    <!-- Bộ điều hướng câu hỏi -->
+    <div class="nav-box">
+        <button class="btn-nav" id="btnPrev">⏮ Câu trước</button>
+        <span class="sentence-counter" id="counter">Câu 1 / 1</span>
+        <button class="btn-nav" id="btnNext">Câu tiếp ⏭</button>
+    </div>
+
+    <!-- Hiển thị câu cần đọc -->
+    <div class="sentence-box" id="targetSentence">Loading...</div>
     
     <button id="btnSpeak">🎤 Bắt đầu nói</button>
 
@@ -101,23 +135,73 @@
 </div>
 
 <script>
-    // Kiểm tra hỗ trợ trình duyệt (Ưu tiên Google Chrome)
+    // Danh sách các câu tiếng Anh để luyện tập (Bạn có thể thêm bớt tùy ý ở đây)
+    const sentences = [
+        "Beautiful day to learn coding",
+        "How is the weather today in New York",
+        "I would like to order a hot cup of coffee",
+        "Practice makes perfect",
+        "Can you tell me how to get to the train station",
+        "An apple a day keeps the doctor away",
+        "Success is not final failure is not fatal",
+        "Where there is a will there is a way"
+    ];
+
+    let currentIndex = 0;
+
+    // Kiểm tra Web Speech API
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
         alert("Trình duyệt của bạn không hỗ trợ Web Speech API. Vui lòng dùng Google Chrome.");
     } else {
         const recognition = new SpeechRecognition();
-        // Cấu hình nhận diện chuẩn Tiếng Anh - Mỹ (en-US)
         recognition.lang = 'en-US'; 
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
 
         const btnSpeak = document.getElementById('btnSpeak');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
         const status = document.getElementById('status');
-        const targetSentence = document.getElementById('targetSentence').innerText.trim();
+        const targetSentence = document.getElementById('targetSentence');
         const scoreDisplay = document.getElementById('score');
         const diffResult = document.getElementById('diffResult');
+        const counter = document.getElementById('counter');
+
+        // Hàm cập nhật câu hiện tại lên giao diện
+        function updateSentence() {
+            targetSentence.innerText = sentences[currentIndex];
+            counter.innerText = `Câu ${currentIndex + 1} / ${sentences.length}`;
+            
+            // Reset lại vùng kết quả khi chuyển câu
+            scoreDisplay.innerText = "-- %";
+            scoreDisplay.style.color = "#333";
+            diffResult.innerHTML = "";
+            status.innerText = "Sẵn sàng! Hãy nhấn nút và đọc câu trên.";
+            
+            // Vô hiệu hóa nút nếu ở đầu/cuối danh sách
+            btnPrev.disabled = currentIndex === 0;
+            btnNext.disabled = currentIndex === sentences.length - 1;
+        }
+
+        // Khởi tạo câu đầu tiên
+        updateSentence();
+
+        // Xử lý nút điều hướng
+        btnPrev.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateSentence();
+            }
+        });
+
+        btnNext.addEventListener('click', () => {
+            if (currentIndex < sentences.length - 1) {
+                currentIndex++;
+                updateSentence();
+            }
+        });
 
         // Khi nhấn nút nói
         btnSpeak.addEventListener('click', () => {
@@ -128,27 +212,24 @@
             diffResult.innerHTML = "";
         });
 
-        // Khi nhận diện hoàn tất
+        // Khi nhận diện xong
         recognition.onresult = (event) => {
             const userSpeech = event.results[0][0].transcript;
             status.innerText = "Đang xử lý kết quả...";
-            calculateScore(targetSentence, userSpeech);
+            calculateScore(sentences[currentIndex], userSpeech);
         };
 
-        // Khi có lỗi xảy ra
         recognition.onerror = (event) => {
             status.innerText = "Có lỗi xảy ra: " + event.error;
             btnSpeak.disabled = false;
         };
 
-        // Khi kết thúc quá trình ghi âm
         recognition.onend = () => {
             btnSpeak.disabled = false;
         };
 
-        // Hàm tính điểm và so sánh từ ngữ
+        // Hàm so sánh và chấm điểm
         function calculateScore(target, user) {
-            // Chuẩn hóa chuỗi: viết thường và xóa dấu câu cơ bản
             const cleanText = text => text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"").split(/\s+/);
             
             const targetWords = cleanText(target);
@@ -157,8 +238,7 @@
             let matchCount = 0;
             let htmlOutput = "<strong>Bạn đã nói:</strong> ";
 
-            // So sánh từng từ trong câu mẫu với câu người dùng nói
-            targetWords.forEach((word, index) => {
+            targetWords.forEach((word) => {
                 if (userWords.includes(word)) {
                     matchCount++;
                     htmlOutput += `<span class="match">${word}</span> `;
@@ -167,23 +247,21 @@
                 }
             });
 
-            // Tính phần trăm chính xác
             const finalScore = Math.round((matchCount / targetWords.length) * 100);
 
-            // Hiển thị kết quả
             scoreDisplay.innerText = finalScore + "%";
             if (finalScore >= 80) {
-                scoreDisplay.style.color = "#2ecc71"; // Xanh lá nếu tốt
+                scoreDisplay.style.color = "#2ecc71";
                 status.innerText = "Tuyệt vời! Phát âm rất chuẩn.";
             } else if (finalScore >= 50) {
-                scoreDisplay.style.color = "#f39c12"; // Cam nếu trung bình
-                status.innerText = "Khá tốt, hãy thử lại những từ màu đỏ.";
+                scoreDisplay.style.color = "#f39c12";
+                status.innerText = "Khá tốt, hãy luyện tập thêm các từ màu đỏ.";
             } else {
-                scoreDisplay.style.color = "#e74c3c"; // Đỏ nếu tệ
-                status.innerText = "Cần cố gắng thêm!";
+                scoreDisplay.style.color = "#e74c3c";
+                status.innerText = "Thử lại lần nữa nào!";
             }
 
-            diffResult.innerHTML = htmlOutput + `<br><br><i>(Chi tiết: Máy nghe được: "${user}")</i>`;
+            diffResult.innerHTML = htmlOutput + `<br><br><i>(Máy nghe được: "${user}")</i>`;
         }
     }
 </script>
